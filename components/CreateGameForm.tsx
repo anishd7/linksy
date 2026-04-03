@@ -203,6 +203,7 @@ export function CreateGameForm() {
                 <div className="flex-1 space-y-3">
                   <Input
                     placeholder="Category name"
+                    data-testid={`category-${c.key}`}
                     value={form.categories[c.key]}
                     onChange={(e) => setCategory(c.key, e.target.value)}
                     className={`font-medium ${
@@ -221,6 +222,7 @@ export function CreateGameForm() {
                       <div key={i}>
                         <Input
                           placeholder={`Word ${i + 1}`}
+                          data-testid={`word-${c.key}-${i}`}
                           value={form.words[c.key][i]}
                           onChange={(e) => setWord(c.key, i, e.target.value)}
                           className={
