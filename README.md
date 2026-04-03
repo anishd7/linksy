@@ -105,6 +105,7 @@ This repo includes `.github/workflows/ci.yml`:
 - Installs Chromium for Playwright
 - Runs `npx playwright test`
 - Uploads the Playwright HTML report artifact
+- PR is blocked unless tests pass
 
 Required CI environment values:
 
