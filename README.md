@@ -1,143 +1,130 @@
-# Linksy — Custom Connections Puzzle Platform
+# Linksy
 
-Build and share custom **Connections** word puzzles. Create 4 categories of 4 words each, get a unique link, and challenge anyone to play.
+Linksy is a custom Connections-style puzzle platform. You can create a game with 4 categories of 4 words, share a link, and let anyone play in the browser.
 
 ## Tech Stack
 
-- **Next.js 16** (App Router, TypeScript)
-- **Tailwind CSS v4** + **shadcn/ui**
-- **Supabase Postgres** (managed database)
-- **nanoid** for game ID generation
+- **Framework:** Next.js 16 (App Router) + TypeScript
+- **UI:** React 19, Tailwind CSS v4, and `shadcn/ui` components
+- **Data layer:** PostgreSQL via `pg` (works with Supabase Postgres or your own Postgres instance)
+- **IDs:** `nanoid` for short shareable game IDs
+- **Testing:** Playwright end-to-end tests
+- **CI:** GitHub Actions workflow for PR validation
 
----
-
-## Local Development
+## Run Your Own Local Version
 
 ### Prerequisites
 
-- **Node.js 18+**
-- A **Supabase** project ([supabase.com/dashboard](https://supabase.com/dashboard))
+- Node.js 20+ recommended
+- npm
+- One database option:
+  - Supabase Postgres project, or
+  - Local/self-hosted Postgres
 
-### 1. Install dependencies
+### 1) Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Create the database table
-
-Go to your Supabase dashboard → **SQL Editor** and run:
-
-```sql
-CREATE TABLE games (
-  game_id        VARCHAR(8) PRIMARY KEY,
-  game_data      JSONB NOT NULL,
-  access_count   INTEGER NOT NULL DEFAULT 0,
-  completion_count INTEGER NOT NULL DEFAULT 0,
-  rating_sum     INTEGER NOT NULL DEFAULT 0,
-  rating_count   INTEGER NOT NULL DEFAULT 0,
-  created_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-```
-
-### 3. Set up environment variables
+### 2) Configure environment
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` with your Supabase connection string. Find it in **Supabase Dashboard → Settings → Database → Connection string**:
+Update `.env.local`:
 
 ```env
-POSTGRES_URL=postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+POSTGRES_URL=postgresql://...
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
-### 4. Start the dev server
+Use one of these DB approaches:
+
+- **Supabase Postgres:** Use your project connection string from Supabase dashboard.
+- **Own Postgres instance:** Point `POSTGRES_URL` at your DB.
+
+### 3) Create the `games` table
+
+Run this SQL in your Postgres database (Supabase SQL Editor or psql):
+
+```sql
+CREATE TABLE IF NOT EXISTS games (
+  game_id           VARCHAR(8) PRIMARY KEY,
+  game_data         JSONB NOT NULL,
+  access_count      INTEGER NOT NULL DEFAULT 0,
+  completion_count  INTEGER NOT NULL DEFAULT 0,
+  rating_sum        INTEGER NOT NULL DEFAULT 0,
+  rating_count      INTEGER NOT NULL DEFAULT 0,
+  created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+```
+
+### 4) Start the app on localhost
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you should see the Linksy creation form.
+Open [http://localhost:3000](http://localhost:3000).
 
-### 5. Test the full flow
+## Test Locally (localhost)
 
-1. Fill in 4 categories with 4 words each on the home page
-2. Click **Create Game** — you'll get a shareable link
-3. Click **Play** to open the game board
-4. Play the game: select 4 words, submit guesses, try to find all 4 categories
-5. After winning or losing, rate the puzzle in the dialog
+### Manual smoke test
 
----
+1. Create a puzzle on `/`
+2. Click **Create Game**
+3. Open the generated `/game/:gameId` link
+4. Submit guesses and verify game state updates
+5. Finish a game and submit a rating
 
-## Project Structure
+### Playwright E2E
 
-```
-app/
-├── layout.tsx                  # Root layout (fonts, Toaster)
-├── page.tsx                    # "/" — Game creation page
-├── game/[gameId]/page.tsx      # "/game/:id" — Game play page
-└── api/games/
-    ├── route.ts                # POST /api/games — create game
-    └── [gameId]/
-        ├── route.ts            # GET /api/games/:id — fetch game
-        └── events/route.ts     # POST /api/games/:id/events — analytics
+Install browser binaries once:
 
-components/
-├── ui/                         # shadcn/ui components
-├── Header.tsx                  # Shared header wordmark
-├── CreateGameForm.tsx          # 4-category creation form
-├── GameBoard.tsx               # Game play orchestrator
-├── WordTile.tsx                # Clickable word tile
-├── CategoryBanner.tsx          # Solved category banner
-├── MistakesIndicator.tsx       # Remaining mistakes dots
-├── ActionButtons.tsx           # Shuffle / Deselect All / Submit
-├── RatingDialog.tsx            # Post-game star rating modal
-└── GameNotFound.tsx            # 404 state
-
-lib/
-├── api.ts                      # Client-side fetch helpers
-├── db.ts                       # Server-side Postgres queries
-├── gameLogic.ts                # Shuffle, answer key, guess checking
-├── gameReducer.ts              # useReducer for game state
-├── validation.ts               # Input validation
-└── id.ts                       # nanoid config
-
-scripts/
-└── migrate.ts                  # Database migration (creates games table)
+```bash
+npx playwright install chromium
 ```
 
----
+Run tests:
 
-## Production Deployment (Vercel)
+```bash
+npm run test:e2e
+```
 
-1. Push the repo to GitHub
-2. Connect it to Vercel at [vercel.com/new](https://vercel.com/new)
-3. Add these environment variables in Vercel's project settings:
-   - `POSTGRES_URL` — your Supabase connection string (use the **Transaction pooler** on port 6543)
-   - `NEXT_PUBLIC_BASE_URL` — your production domain (e.g., `https://linksy.gg`)
-4. Make sure the `games` table exists in Supabase (see step 2 under Local Development)
-5. Deploy — every push to `main` auto-deploys
+Playwright uses `http://localhost:3000` and starts the app using a production build (`npm run build && npm start`) during the test run.
 
-### Environment Variables
+## Playwright + CI Workflows
 
-| Variable               | Required | Description                                       |
-|------------------------|----------|---------------------------------------------------|
-| `POSTGRES_URL`         | Yes      | Supabase Postgres connection string (pooler, port 6543) |
-| `NEXT_PUBLIC_BASE_URL` | Yes      | Base URL for shareable links (`http://localhost:3000` locally) |
+This repo includes `.github/workflows/ci.yml`:
 
----
+- Triggers on pull requests to `main`
+- Runs on `ubuntu-latest` with Node 20
+- Installs dependencies with `npm ci`
+- Installs Chromium for Playwright
+- Runs `npx playwright test`
+- Uploads the Playwright HTML report artifact
+- PR is blocked unless tests pass
+
+Required CI environment values:
+
+- `POSTGRES_URL` as a GitHub Actions secret
+- `NEXT_PUBLIC_BASE_URL=http://localhost:3000`
+
+## shadcn/ui and Webdev Workflow
+
+- UI primitives and components live under `components/ui` and follow `shadcn/ui` patterns.
+- Project tooling allows `npx shadcn` and standard npm commands, enabling fast UI iteration.
+- The workflow is optimized for practical webdev loops: build UI quickly, validate with Playwright, and enforce quality in CI.
 
 ## API Endpoints
 
-| Method | Path                          | Description           |
-|--------|-------------------------------|-----------------------|
-| POST   | `/api/games`                  | Create a new game     |
-| GET    | `/api/games/:gameId`          | Fetch a game          |
-| POST   | `/api/games/:gameId/events`   | Record analytics event|
-
----
+| Method | Path                        | Description              |
+| ------ | --------------------------- | ------------------------ |
+| POST   | `/api/games`                | Create a new game        |
+| GET    | `/api/games/:gameId`        | Fetch a game             |
+| POST   | `/api/games/:gameId/events` | Record analytics events  |
 
 ## License
 
