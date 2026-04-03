@@ -47,10 +47,18 @@ Use one of these DB approaches:
 
 ### 3) Create the `games` table
 
-Run the migration script:
+Run this SQL in your Postgres database (Supabase SQL Editor or psql):
 
-```bash
-npm run db:migrate
+```sql
+CREATE TABLE IF NOT EXISTS games (
+  game_id           VARCHAR(8) PRIMARY KEY,
+  game_data         JSONB NOT NULL,
+  access_count      INTEGER NOT NULL DEFAULT 0,
+  completion_count  INTEGER NOT NULL DEFAULT 0,
+  rating_sum        INTEGER NOT NULL DEFAULT 0,
+  rating_count      INTEGER NOT NULL DEFAULT 0,
+  created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
 ```
 
 ### 4) Start the app on localhost
