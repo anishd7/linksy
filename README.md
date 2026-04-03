@@ -37,7 +37,6 @@ Update `.env.local`:
 
 ```env
 POSTGRES_URL=postgresql://...
-POSTGRES_SSL=true
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ```
 
@@ -45,7 +44,6 @@ Use one of these DB approaches:
 
 - **Supabase Postgres:** Use your project connection string from Supabase dashboard.
 - **Own Postgres instance:** Point `POSTGRES_URL` at your DB.
-  - If your local Postgres does **not** use TLS/SSL, set `POSTGRES_SSL=false`.
 
 ### 3) Create the `games` table
 
