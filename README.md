@@ -8,15 +8,18 @@ Linksy is a custom [Connections](https://www.nytimes.com/games/connections)-styl
 
 ## Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16 (App Router) + TypeScript |
-| UI | React 19, Tailwind CSS v4, shadcn/ui |
-| Database | PostgreSQL via `pg` (Supabase Postgres) |
-| Testing | Playwright end-to-end tests |
-| Analytics | Vercel Analytics (page views + custom events) |
-| Deployment | Vercel (preview deployments on every PR) |
-| CI | GitHub Actions |
+
+| Layer      | Choice                                        |
+| ---------- | --------------------------------------------- |
+| Framework  | Next.js 16 (App Router) + TypeScript          |
+| UI         | React 19, Tailwind CSS v4, shadcn/ui          |
+| Database   | PostgreSQL via `pg` (Supabase Postgres)       |
+| Cache      | Upstash Redis (sorted sets for leaderboard)   |
+| Testing    | Playwright end-to-end tests                   |
+| Analytics  | Vercel Analytics (page views + custom events) |
+| Deployment | Vercel (preview deployments on every PR)      |
+| CI         | GitHub Actions                                |
+
 
 ---
 
@@ -28,6 +31,7 @@ Linksy is a custom [Connections](https://www.nytimes.com/games/connections)-styl
 - **Share on X** — one-click pre-filled tweet with the game link, available after creation and during play
 - **Rate games** — 1–5 star rating dialog after completing a game, averaged across all players
 - **Analytics** — Vercel Analytics tracks page views, game creation, game plays, share clicks, and ratings; geographic breakdowns included automatically
+- **Top-K Leaderboard** — browse the highest-rated games, backed by an Upstash Redis sorted set with configurable K (1, 3, 5, or 10); cache auto-refreshes daily via a 24-hour TTL
 
 ---
 
@@ -39,23 +43,27 @@ A core design goal of this project was building a **GitHub-native AI developer l
 
 Each workflow responds to a distinct trigger class, has different permission requirements, and should fail independently:
 
-| Workflow | File | Trigger | Purpose |
-|---|---|---|---|
-| Issue Handler | `claude.yml` | New issue or `@claude` comment on an issue | Reads the issue, implements the feature, opens a PR |
-| PR Review | `claude-pr-review.yml` | `@claude` mention on a PR comment or review | Reviews code, answers questions, applies requested changes |
-| CI Auto-Fix | `claude-ci-fix.yml` | CI failure on a `claude/` branch | Downloads Playwright report artifact, diagnoses the failure, pushes a fix |
+
+| Workflow      | File                   | Trigger                                     | Purpose                                                                   |
+| ------------- | ---------------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| Issue Handler | `claude.yml`           | New issue or `@claude` comment on an issue  | Reads the issue, implements the feature, opens a PR                       |
+| PR Review     | `claude-pr-review.yml` | `@claude` mention on a PR comment or review | Reviews code, answers questions, applies requested changes                |
+| CI Auto-Fix   | `claude-ci-fix.yml`    | CI failure on a `claude/` branch            | Downloads Playwright report artifact, diagnoses the failure, pushes a fix |
+
 
 Keeping them separate means a PR review comment can't accidentally trigger an issue-to-PR flow, and the CI auto-fixer only activates on Claude-authored branches — not developer branches. The CI auto-fixer also includes a retry cap (max 2 fix attempts per branch) to prevent infinite loops.
 
 ### End-to-end example
 
 **Share on X** ([issue #5](https://github.com/anishd7/linksy/issues/5), [PR #6](https://github.com/anishd7/linksy/pull/6)):
+
 1. Opened an issue describing the button and desired tweet text
 2. The Issue Handler workflow triggered, implemented the feature, and opened a PR automatically
 3. After reviewing the PR, left an `@claude` comment asking for the button to also appear on the game page
 4. The PR Review workflow picked up the comment and pushed the additional change to the same branch
 
 **Vercel Analytics** ([issue #7](https://github.com/anishd7/linksy/issues/7), [PR #8](https://github.com/anishd7/linksy/pull/8)):
+
 1. Opened an issue listing all the specific events to track (game creation, plays, share clicks, ratings, geographic data)
 2. Issue Handler implemented and opened the PR, tracking every requested event using `@vercel/analytics`
 3. When the action run hit a turn limit mid-run, left an `@claude` comment on the PR requesting a review — the PR Review workflow verified all events were correctly instrumented and confirmed the build passed
@@ -72,7 +80,7 @@ Every pull request to `main` runs `ci.yml`:
 4. Uploads the Playwright HTML report as a build artifact
 5. Blocks merge if tests fail
 
-Required GitHub Actions secrets: `POSTGRES_URL`.
+Required GitHub Actions secrets: `POSTGRES_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`.
 
 Each PR also gets an automatic **Vercel preview deployment**, providing a live URL to test against before merging.
 
@@ -86,12 +94,16 @@ Both pages (`/` and `/game/[gameId]`) are fully client-rendered (`"use client"`)
 app/
   page.tsx                  # Create puzzle page
   game/[gameId]/page.tsx    # Play puzzle page
+  leaderboard/page.tsx      # Top-K leaderboard page
   api/
     games/
       route.ts              # POST /api/games — create
       [gameId]/
         route.ts            # GET /api/games/:gameId — fetch
-        events/route.ts     # POST /api/games/:gameId/events — analytics
+        events/route.ts     # POST /api/games/:gameId/events — analytics + Redis update
+    leaderboard/
+      route.ts              # GET /api/leaderboard?k=5 — fetch top K from Redis
+      populate/route.ts     # POST /api/leaderboard/populate — seed cache from Postgres
 
 components/
   CreateGameForm.tsx         # Form with validation and success state
@@ -105,6 +117,8 @@ lib/
   gameReducer.ts             # useReducer managing full board state
   validation.ts              # Shared input validation (16 unique words, limits)
   db.ts                      # pg Pool — no ORM
+  redis.ts                   # Upstash Redis client + sorted set helpers
+  leaderboard.ts             # Leaderboard business logic (update, query, populate)
   api.ts                     # Client-side fetch wrappers
   id.ts                      # nanoid with a-z0-9 alphabet, length 8
 ```
@@ -112,6 +126,8 @@ lib/
 **Answer verification** — words are sorted lexicographically at creation time. Guess checking hashes the sorted selection and compares against the stored answer key, making verification O(1) without any API call.
 
 **Database** — single `games` table with JSONB game data and integer counters for access, completion, ratings.
+
+**Leaderboard cache** — an Upstash Redis sorted set (`leaderboard:games`) ranks games by average rating (`rating_sum / rating_count`). On each rating write, the score is updated in Redis with retry logic (3 attempts). An `EXISTS` guard prevents orphan entries after TTL expiry. The GET endpoint reads from Redis first and auto-populates from Postgres on a cache miss. The entire sorted set expires after 24 hours via `EXPIRE`, triggering a full refresh on the next read.
 
 ---
 
@@ -139,7 +155,11 @@ Fill in `.env.local`:
 ```env
 POSTGRES_URL=postgresql://...
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
+UPSTASH_REDIS_REST_URL=https://...upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
 ```
+
+Get the Redis credentials from [console.upstash.com](https://console.upstash.com) (create a free database, then copy the REST URL and token).
 
 ### 3. Create the database table
 
@@ -169,11 +189,15 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## API Reference
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/games` | Create a new game |
-| `GET` | `/api/games/:gameId` | Fetch a game by ID |
-| `POST` | `/api/games/:gameId/events` | Record an analytics event |
+
+| Method | Path                        | Description                                  |
+| ------ | --------------------------- | -------------------------------------------- |
+| `POST` | `/api/games`                | Create a new game                            |
+| `GET`  | `/api/games/:gameId`        | Fetch a game by ID                           |
+| `POST` | `/api/games/:gameId/events` | Record an analytics event (+ Redis on rating)|
+| `GET`  | `/api/leaderboard?k=5`     | Fetch top K games from Redis                 |
+| `POST` | `/api/leaderboard/populate` | Seed the leaderboard cache from Postgres     |
+
 
 ---
 
