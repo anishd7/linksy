@@ -227,6 +227,22 @@ export function GameBoard({ gameId, gameData }: GameBoardProps) {
         </Button>
       </div>
 
+      {/* Navigation links */}
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Link
+          href="/leaderboard"
+          className="text-sm font-medium text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors"
+        >
+          View Leaderboard →
+        </Link>
+        <Link
+          href="/"
+          className="text-sm font-medium text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors"
+        >
+          Create your own →
+        </Link>
+      </div>
+
       {/* Rating dialog */}
       <RatingDialog
         open={showRating}
