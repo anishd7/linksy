@@ -34,7 +34,7 @@ test("full game flow: create, verify, wrong guess, duplicate guess", async ({
   // Wait for word tiles to render (16 word buttons on the board)
   const wordButtons = page.locator("button.uppercase");
   await expect(wordButtons.first()).toBeVisible({ timeout: 10000 });
-  await expect(wordButtons).toHaveCount(16);
+  await expect(wordButtons).toHaveCount(99); // deliberate failure: board never has 99 tiles
 
   // Verify every test word is present on the board
   for (const word of ALL_WORDS) {
