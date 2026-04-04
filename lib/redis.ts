@@ -61,3 +61,25 @@ export async function setKeyExpiry(
 ): Promise<void> {
   await getRedis().expire(key, seconds);
 }
+
+// --- Hash helpers ---
+
+export async function hashSet(
+  key: string,
+  field: string,
+  value: string
+): Promise<void> {
+  await getRedis().hset(key, { [field]: value });
+}
+
+export async function hashGetMultiple(
+  key: string,
+  fields: string[]
+): Promise<(string | null)[]> {
+  if (fields.length === 0) return [];
+  return await getRedis().hmget<(string | null)[]>(key, ...fields);
+}
+
+export async function hashDel(key: string, field: string): Promise<void> {
+  await getRedis().hdel(key, field);
+}
