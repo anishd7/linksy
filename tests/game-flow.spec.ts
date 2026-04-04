@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+const BASE_URL = "http://localhost:3000";
+
 const TEST_CATEGORIES = {
   yellow: { name: "Fruits", words: ["apple", "banana", "cherry", "date"] },
   green: { name: "Colors", words: ["red", "blue", "green", "white"] },
@@ -68,5 +70,55 @@ test("full game flow: create, verify, wrong guess, duplicate guess", async ({
 
   await expect(page.getByText("Already guessed!")).toBeVisible({
     timeout: 3000,
+  });
+});
+
+test("leaderboard shows rated games and responds to K dropdown", async ({
+  page,
+  request,
+}) => {
+  // Create a game via API
+  const gameData = {
+    yellow: { category: "Fruits", words: ["apple", "banana", "cherry", "date"] },
+    green: { category: "Colors", words: ["red", "blue", "green", "white"] },
+    blue: { category: "Animals", words: ["cat", "dog", "fish", "bird"] },
+    purple: { category: "Planets", words: ["mars", "venus", "earth", "jupiter"] },
+  };
+
+  const createRes = await request.post(`${BASE_URL}/api/games`, {
+    data: gameData,
+  });
+  expect(createRes.ok()).toBeTruthy();
+  const { gameId } = await createRes.json();
+
+  // Rate the game
+  const rateRes = await request.post(
+    `${BASE_URL}/api/games/${gameId}/events`,
+    { data: { type: "rating", stars: 5 } }
+  );
+  expect(rateRes.ok()).toBeTruthy();
+
+  // Populate the leaderboard cache
+  const populateRes = await request.post(`${BASE_URL}/api/leaderboard/populate`);
+  expect(populateRes.ok()).toBeTruthy();
+
+  // Navigate to leaderboard page
+  await page.goto("/leaderboard");
+
+  // Verify at least one entry is visible
+  await expect(page.getByTestId("leaderboard-entry").first()).toBeVisible({
+    timeout: 10000,
+  });
+
+  // Change K dropdown to 1 and verify list updates
+  await page.getByTestId("k-select").selectOption("1");
+  await expect(page.getByTestId("leaderboard-entry")).toHaveCount(1, {
+    timeout: 5000,
+  });
+
+  // Change K dropdown to 10 and verify list updates
+  await page.getByTestId("k-select").selectOption("10");
+  await expect(page.getByTestId("leaderboard-entry").first()).toBeVisible({
+    timeout: 5000,
   });
 });

@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getGame, sendEvent, NotFoundError } from "@/lib/api";
 import { track } from "@vercel/analytics";
 import type { GetGameResponse } from "@/lib/api";
-import Link from "next/link";
 
 export default function GamePage({
   params,
@@ -47,15 +46,7 @@ export default function GamePage({
 
   return (
     <div className="flex flex-col items-center min-h-full px-4 pb-12">
-      <div className="w-full max-w-lg flex items-center justify-between py-4">
-        <Header size="small" />
-        <Link
-          href="/"
-          className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] underline underline-offset-4"
-        >
-          Create your own
-        </Link>
-      </div>
+      <Header size="small" />
 
       <main className="w-full max-w-lg">
         {loading && <LoadingSkeleton />}

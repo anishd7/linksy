@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { incrementAccess, incrementCompletion, addRating } from "@/lib/db";
+import { updateLeaderboardScore } from "@/lib/leaderboard";
+
+const MAX_REDIS_RETRIES = 3;
 
 export async function POST(
   request: Request,
@@ -37,7 +40,24 @@ export async function POST(
             { status: 400 }
           );
         }
-        await addRating(gameId, stars);
+        const result = await addRating(gameId, stars);
+
+        if (result) {
+          for (let attempt = 1; attempt <= MAX_REDIS_RETRIES; attempt++) {
+            try {
+              await updateLeaderboardScore(
+                gameId,
+                result.ratingSum,
+                result.ratingCount
+              );
+              break;
+            } catch (err) {
+              if (attempt === MAX_REDIS_RETRIES) {
+                console.error("Redis leaderboard update failed after retries:", err);
+              }
+            }
+          }
+        }
         break;
       }
 

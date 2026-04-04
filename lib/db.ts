@@ -79,11 +79,29 @@ export async function incrementCompletion(gameId: string): Promise<boolean> {
 export async function addRating(
   gameId: string,
   stars: number
-): Promise<boolean> {
+): Promise<{ ratingSum: number; ratingCount: number } | null> {
   const db = getPool();
-  const result = await db.query(
-    `UPDATE games SET rating_sum = rating_sum + $1, rating_count = rating_count + 1 WHERE game_id = $2`,
+  const result = await db.query<{ rating_sum: number; rating_count: number }>(
+    `UPDATE games SET rating_sum = rating_sum + $1, rating_count = rating_count + 1 WHERE game_id = $2 RETURNING rating_sum, rating_count`,
     [stars, gameId]
   );
-  return (result.rowCount ?? 0) > 0;
+  const row = result.rows[0];
+  if (!row) return null;
+  return { ratingSum: row.rating_sum, ratingCount: row.rating_count };
+}
+
+export async function getAllRatedGames(): Promise<
+  { gameId: string; ratingSum: number; ratingCount: number }[]
+> {
+  const db = getPool();
+  const result = await db.query<{
+    game_id: string;
+    rating_sum: number;
+    rating_count: number;
+  }>(`SELECT game_id, rating_sum, rating_count FROM games WHERE rating_count > 0`);
+  return result.rows.map((row) => ({
+    gameId: row.game_id,
+    ratingSum: row.rating_sum,
+    ratingCount: row.rating_count,
+  }));
 }
