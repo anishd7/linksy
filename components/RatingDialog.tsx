@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { sendEvent } from "@/lib/api";
+import { track } from "@vercel/analytics";
 
 interface RatingDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function RatingDialog({ open, onClose, gameId }: RatingDialogProps) {
   function handleSubmit() {
     if (selected === 0) return;
     sendEvent(gameId, { type: "rating", stars: selected });
+    track("game_rated", { stars: selected });
     setSubmitted(true);
     toast.success("Thanks for rating!");
     onClose();

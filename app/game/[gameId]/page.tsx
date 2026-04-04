@@ -6,6 +6,7 @@ import { GameBoard } from "@/components/GameBoard";
 import { GameNotFound } from "@/components/GameNotFound";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getGame, sendEvent, NotFoundError } from "@/lib/api";
+import { track } from "@vercel/analytics";
 import type { GetGameResponse } from "@/lib/api";
 import Link from "next/link";
 
@@ -29,6 +30,7 @@ export default function GamePage({
         setLoading(false);
         // Fire-and-forget access event
         sendEvent(gameId, { type: "accessed" });
+        track("game_played");
       })
       .catch((err) => {
         if (cancelled) return;

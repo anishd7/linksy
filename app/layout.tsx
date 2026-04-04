@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Serif_Display, DM_Sans } from "next/font/google";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const dmSerifDisplay = DM_Serif_Display({
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         {children}
         <Toaster position="top-center" richColors />
+        <Analytics />
       </body>
     </html>
   );
