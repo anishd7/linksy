@@ -2,7 +2,7 @@
 
 Linksy is a custom [Connections](https://www.nytimes.com/games/connections)-style word puzzle platform. Create a puzzle with 4 categories of 4 words, share a link, and let anyone play in the browser — no account required.
 
-**[Live demo →](https://linksy.vercel.app)**
+**[Live demo →](https://linksy-eta.vercel.app/)**
 
 ---
 
