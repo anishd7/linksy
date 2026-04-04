@@ -4,7 +4,8 @@
       "Bash(npx create-next-app@latest:*)",
       "Bash(npx shadcn@latest:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
