@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { createGame } from "@/lib/api";
+import { track } from "@vercel/analytics";
 
 const COLORS = [
   { key: "yellow", label: "Yellow", color: "#F9DF6D" },
@@ -127,6 +128,7 @@ export function CreateGameForm() {
 
       const res = await createGame(gameData);
       setResult(res);
+      track("game_created");
       toast.success("Game created!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create game");
@@ -184,12 +186,13 @@ export function CreateGameForm() {
             </Button>
           </div>
           <Button
-            onClick={() =>
+            onClick={() => {
+              track("share_on_x", { context: "game_created" });
               window.open(
                 `https://twitter.com/intent/tweet?text=${encodeURIComponent("Try out this custom connections game!")}&url=${encodeURIComponent(result.url)}`,
                 "_blank"
-              )
-            }
+              );
+            }}
             className="w-full bg-black text-white hover:bg-[#333] rounded-full flex items-center justify-center gap-2"
           >
             <svg

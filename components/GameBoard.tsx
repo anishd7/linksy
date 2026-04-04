@@ -13,6 +13,7 @@ import { ActionButtons } from "./ActionButtons";
 import { RatingDialog } from "./RatingDialog";
 import { Button } from "@/components/ui/button";
 import { sendEvent } from "@/lib/api";
+import { track } from "@vercel/analytics";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -205,12 +206,13 @@ export function GameBoard({ gameId, gameData }: GameBoardProps) {
       {/* Share on X */}
       <div className="mt-4">
         <Button
-          onClick={() =>
+          onClick={() => {
+            track("share_on_x", { context: "game_played" });
             window.open(
               `https://twitter.com/intent/tweet?text=${encodeURIComponent("Try out this custom connections game!")}&url=${encodeURIComponent(window.location.href)}`,
               "_blank"
-            )
-          }
+            );
+          }}
           className="w-full bg-black text-white hover:bg-[#333] rounded-full flex items-center justify-center gap-2"
         >
           <svg
