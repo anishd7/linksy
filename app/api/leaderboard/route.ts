@@ -29,7 +29,9 @@ export async function GET(request: Request) {
       score: entry.score,
     }));
 
-    return NextResponse.json(leaderboard);
+    return NextResponse.json(leaderboard, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err) {
     console.error("Failed to fetch leaderboard:", err);
     return NextResponse.json(

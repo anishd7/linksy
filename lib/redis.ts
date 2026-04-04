@@ -61,3 +61,7 @@ export async function setKeyExpiry(
 ): Promise<void> {
   await getRedis().expire(key, seconds);
 }
+
+export async function deleteKey(key: string): Promise<void> {
+  await getRedis().del(key);
+}

@@ -4,6 +4,7 @@ import {
   sortedSetTopK,
   keyExists,
   setKeyExpiry,
+  deleteKey,
 } from "./redis";
 import { getAllRatedGames } from "./db";
 
@@ -16,7 +17,11 @@ export async function updateLeaderboardScore(
   ratingCount: number
 ): Promise<void> {
   const exists = await keyExists(LEADERBOARD_KEY);
-  if (!exists) return;
+  if (!exists) {
+    // Key expired; rebuild from DB (which already has the new rating applied)
+    await populateLeaderboard();
+    return;
+  }
 
   if (ratingCount === 0) {
     await sortedSetRemove(LEADERBOARD_KEY, gameId);
@@ -35,6 +40,9 @@ export async function getTopGames(
 
 export async function populateLeaderboard(): Promise<number> {
   const games = await getAllRatedGames();
+
+  // Delete any stale key before rebuilding to avoid lingering old entries
+  await deleteKey(LEADERBOARD_KEY);
 
   for (const game of games) {
     const score = game.ratingSum / game.ratingCount;
