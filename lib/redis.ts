@@ -77,7 +77,7 @@ export async function hashGetMultiple(
   fields: string[]
 ): Promise<(string | null)[]> {
   if (fields.length === 0) return [];
-  return await getRedis().hmget<(string | null)[]>(key, ...fields);
+  return (await getRedis().hmget<(string | null)[]>(key, ...fields)) ?? [];
 }
 
 export async function hashDel(key: string, field: string): Promise<void> {
