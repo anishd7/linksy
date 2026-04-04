@@ -45,7 +45,7 @@ test("full game flow: create, verify, wrong guess, duplicate guess", async ({
 
   // --- Step 3: Wrong guess decrements mistakes ---
   await expect(
-    page.getByLabel("4 mistakes remaining")
+    page.getByLabel("4 mistakes left")
   ).toBeVisible();
 
   // Pick one word from each category (guaranteed wrong)
