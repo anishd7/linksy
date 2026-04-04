@@ -10,7 +10,7 @@ export function MistakesIndicator({
   total = 4,
 }: MistakesIndicatorProps) {
   return (
-    <div className="flex items-center justify-center gap-2 py-3" aria-label={`${remaining} mistakes remaining`}>
+    <div className="flex items-center justify-center gap-2 py-3" aria-label={`${remaining} of ${total} mistakes remaining`}>
       <span className="text-sm text-[#6B6B6B] mr-1">Mistakes remaining:</span>
       <div className="flex gap-1.5">
         {Array.from({ length: total }).map((_, i) => (
