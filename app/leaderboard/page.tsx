@@ -9,6 +9,7 @@ interface LeaderboardEntry {
   rank: number;
   gameId: string;
   score: number;
+  ratingCount: number;
 }
 
 const K_OPTIONS = [1, 3, 5, 10] as const;
@@ -113,9 +114,14 @@ export default function LeaderboardPage() {
                     {entry.gameId}
                   </span>
                 </div>
-                <span className="text-sm font-medium text-[#1A1A1A] tabular-nums">
-                  {entry.score.toFixed(1)} ★
-                </span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-sm font-medium text-[#1A1A1A] tabular-nums">
+                    {entry.score.toFixed(1)} ★
+                  </span>
+                  <span className="text-xs text-[#6B6B6B] tabular-nums">
+                    {entry.ratingCount} {entry.ratingCount === 1 ? "rating" : "ratings"}
+                  </span>
+                </div>
                 <Link
                   href={`/game/${entry.gameId}`}
                   className="text-sm font-medium text-[#B0C4EF] hover:text-[#8AA4D4] transition-colors"

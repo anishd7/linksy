@@ -27,9 +27,12 @@ export async function GET(request: Request) {
       rank: index + 1,
       gameId: entry.gameId,
       score: entry.score,
+      ratingCount: entry.ratingCount,
     }));
 
-    return NextResponse.json(leaderboard);
+    return NextResponse.json(leaderboard, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err) {
     console.error("Failed to fetch leaderboard:", err);
     return NextResponse.json(
