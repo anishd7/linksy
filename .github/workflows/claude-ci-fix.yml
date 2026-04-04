@@ -1,0 +1,78 @@
+name: Claude CI Fix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  fix-ci:
+    # Only run when CI failed on a claude/ branch
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'claude/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Check retry count
+        id: retry-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          # Count previous completed runs of this workflow on the same branch
+          PRIOR_RUNS=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow "Claude CI Fix" \
+            --branch "$BRANCH" \
+            --status completed \
+            --json conclusion \
+            --jq 'length')
+          echo "Prior fix attempts on branch $BRANCH: $PRIOR_RUNS"
+          if [ "$PRIOR_RUNS" -ge 2 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Max CI fix attempts (2) reached. Stopping."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        if: steps.retry-check.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 1
+
+      - name: Download Playwright report artifact
+        if: steps.retry-check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Download the playwright-report artifact from the failed CI run
+          gh run download ${{ github.event.workflow_run.id }} \
+            --repo "${{ github.repository }}" \
+            --name playwright-report \
+            --dir playwright-report || echo "No playwright-report artifact found"
+
+      - name: Run Claude Code to fix CI
+        if: steps.retry-check.outputs.skip != 'true'
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            The CI workflow has failed on this branch. Your job is to:
+            1. Read the CI failure logs with: `gh run view ${{ github.event.workflow_run.id }} --repo ${{ github.repository }} --log-failed`
+            2. If a playwright-report/ directory exists in the repo root, read its contents for detailed test failure info
+            3. Understand what went wrong (build error, lint error, test failure, etc.)
+            4. Fix the code to resolve the CI failure
+            5. Commit and push your fix to this branch
+
+            Do NOT open a new PR — just push the fix to the current branch.
+          additional_permissions: |
+            actions: read
