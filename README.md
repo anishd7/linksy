@@ -8,15 +8,17 @@ Linksy is a custom [Connections](https://www.nytimes.com/games/connections)-styl
 
 ## Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16 (App Router) + TypeScript |
-| UI | React 19, Tailwind CSS v4, shadcn/ui |
-| Database | PostgreSQL via `pg` (Supabase Postgres) |
-| Testing | Playwright end-to-end tests |
-| Analytics | Vercel Analytics (page views + custom events) |
-| Deployment | Vercel (preview deployments on every PR) |
-| CI | GitHub Actions |
+
+| Layer      | Choice                                        |
+| ---------- | --------------------------------------------- |
+| Framework  | Next.js 16 (App Router) + TypeScript          |
+| UI         | React 19, Tailwind CSS v4, shadcn/ui          |
+| Database   | PostgreSQL via `pg` (Supabase Postgres)       |
+| Testing    | Playwright end-to-end tests                   |
+| Analytics  | Vercel Analytics (page views + custom events) |
+| Deployment | Vercel (preview deployments on every PR)      |
+| CI         | GitHub Actions                                |
+
 
 ---
 
@@ -28,6 +30,7 @@ Linksy is a custom [Connections](https://www.nytimes.com/games/connections)-styl
 - **Share on X** — one-click pre-filled tweet with the game link, available after creation and during play
 - **Rate games** — 1–5 star rating dialog after completing a game, averaged across all players
 - **Analytics** — Vercel Analytics tracks page views, game creation, game plays, share clicks, and ratings; geographic breakdowns included automatically
+- **Top K Leaderboard** - Top k games by rating backed by Redis sorted set
 
 ---
 
@@ -39,23 +42,27 @@ A core design goal of this project was building a **GitHub-native AI developer l
 
 Each workflow responds to a distinct trigger class, has different permission requirements, and should fail independently:
 
-| Workflow | File | Trigger | Purpose |
-|---|---|---|---|
-| Issue Handler | `claude.yml` | New issue or `@claude` comment on an issue | Reads the issue, implements the feature, opens a PR |
-| PR Review | `claude-pr-review.yml` | `@claude` mention on a PR comment or review | Reviews code, answers questions, applies requested changes |
-| CI Auto-Fix | `claude-ci-fix.yml` | CI failure on a `claude/` branch | Downloads Playwright report artifact, diagnoses the failure, pushes a fix |
+
+| Workflow      | File                   | Trigger                                     | Purpose                                                                   |
+| ------------- | ---------------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| Issue Handler | `claude.yml`           | New issue or `@claude` comment on an issue  | Reads the issue, implements the feature, opens a PR                       |
+| PR Review     | `claude-pr-review.yml` | `@claude` mention on a PR comment or review | Reviews code, answers questions, applies requested changes                |
+| CI Auto-Fix   | `claude-ci-fix.yml`    | CI failure on a `claude/` branch            | Downloads Playwright report artifact, diagnoses the failure, pushes a fix |
+
 
 Keeping them separate means a PR review comment can't accidentally trigger an issue-to-PR flow, and the CI auto-fixer only activates on Claude-authored branches — not developer branches. The CI auto-fixer also includes a retry cap (max 2 fix attempts per branch) to prevent infinite loops.
 
 ### End-to-end example
 
 **Share on X** ([issue #5](https://github.com/anishd7/linksy/issues/5), [PR #6](https://github.com/anishd7/linksy/pull/6)):
+
 1. Opened an issue describing the button and desired tweet text
 2. The Issue Handler workflow triggered, implemented the feature, and opened a PR automatically
 3. After reviewing the PR, left an `@claude` comment asking for the button to also appear on the game page
 4. The PR Review workflow picked up the comment and pushed the additional change to the same branch
 
 **Vercel Analytics** ([issue #7](https://github.com/anishd7/linksy/issues/7), [PR #8](https://github.com/anishd7/linksy/pull/8)):
+
 1. Opened an issue listing all the specific events to track (game creation, plays, share clicks, ratings, geographic data)
 2. Issue Handler implemented and opened the PR, tracking every requested event using `@vercel/analytics`
 3. When the action run hit a turn limit mid-run, left an `@claude` comment on the PR requesting a review — the PR Review workflow verified all events were correctly instrumented and confirmed the build passed
@@ -169,11 +176,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## API Reference
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/games` | Create a new game |
-| `GET` | `/api/games/:gameId` | Fetch a game by ID |
+
+| Method | Path                        | Description               |
+| ------ | --------------------------- | ------------------------- |
+| `POST` | `/api/games`                | Create a new game         |
+| `GET`  | `/api/games/:gameId`        | Fetch a game by ID        |
 | `POST` | `/api/games/:gameId/events` | Record an analytics event |
+
 
 ---
 
